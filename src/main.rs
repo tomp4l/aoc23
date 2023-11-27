@@ -27,7 +27,8 @@ fn default_error_handler<E: Debug, R>(error: E) -> R {
 fn main() {
     let opt = Opt::from_args();
     let mut programs: HashMap<i32, Box<dyn Day>> = HashMap::new();
-    programs.insert(1, Box::new(day1::Day1));
+    programs.insert(1, Box::new(day1::Instance));
+    programs.insert(2, Box::new(day2::Instance));
 
     let program = programs
         .get(&opt.day)
@@ -35,7 +36,10 @@ fn main() {
     let file_contents: Vec<String> = fs::File::open(format!("input/day{}.txt", opt.day))
         .and_then(|file| BufReader::new(file).lines().collect())
         .unwrap_or_else(default_error_handler);
-    program
+    let result = program
         .run(file_contents)
-        .unwrap_or_else(default_error_handler)
+        .unwrap_or_else(default_error_handler);
+
+    println!("Part 1: {}", result.part1);
+    result.part2.map(|v| println!("Part 2: {}", v));
 }
