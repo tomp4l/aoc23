@@ -2,59 +2,44 @@ use super::day::*;
 
 pub struct Instance;
 
-fn sum_first_last(lines: &Vec<String>) -> u32 {
+fn calibration_value(lines: &Vec<String>, scores: &Vec<(String, u32)>) -> u32 {
     lines
         .iter()
         .map(|l| {
-            l.chars()
-                .filter(|c| ('1'..='9').contains(c))
-                .collect::<Vec<_>>()
+            let mut first = None;
+            let mut last = None;
+            for i in 0..l.len() {
+                for (m, s) in scores {
+                    if l[i..].starts_with(m) {
+                        if first.is_none() {
+                            first = Some(*s)
+                        }
+                        last = Some(*s)
+                    }
+                }
+            }
+            first.unwrap_or(0) * 10 + last.unwrap_or(0)
         })
-        .map(|n| {
-            vec![n.first().unwrap_or(&'0'), n.last().unwrap_or(&'0')]
-                .into_iter()
-                .collect::<String>()
-                .parse::<u32>()
-                .unwrap()
-        })
-        .sum::<u32>()
+        .sum()
 }
 
 impl Day for Instance {
     fn run(&self, lines: Vec<String>) -> Result<DayResult, String> {
-        let part1 = sum_first_last(&lines);
+        let mut scores: Vec<_> = (1..=9).map(|i| (i.to_string(), i)).collect();
 
-        let replacements = vec![
-            ("one", "1"),
-            ("two", "2"),
-            ("three", "3"),
-            ("four", "4"),
-            ("five", "5"),
-            ("six", "6"),
-            ("seven", "7"),
-            ("eight", "8"),
-            ("nine", "9"),
-        ];
+        let part1: u32 = calibration_value(&lines, &scores);
 
-        let part2 = sum_first_last(
-            &lines
-                .iter()
-                .map(|l| {
-                    let mut r = l.to_owned();
-                    let mut found = true;
-                    while found {
-                        found = false;
-                        for (f, t) in &replacements {
-                            if let Some(i) = r.find(f) {
-                                found = true;
-                                r = r[..i + 1].to_owned() + t + &r[i + 1..];
-                            }
-                        }
-                    }
-                    r
-                })
-                .collect::<Vec<_>>(),
-        );
+        let words: Vec<_> = vec![
+            "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+        ]
+        .iter()
+        .enumerate()
+        .map(|(i, &w)| (w.to_owned(), (i + 1) as u32))
+        .collect();
+
+        scores.extend(words);
+
+        let part2 = calibration_value(&lines, &scores);
         Ok(DayResult {
             part1: part1.to_string(),
             part2: Some(part2.to_string()),
