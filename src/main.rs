@@ -41,5 +41,7 @@ fn main() {
         .unwrap_or_else(default_error_handler);
 
     println!("Part 1: {}", result.part1);
-    result.part2.map(|v| println!("Part 2: {}", v));
+    if let Some(v) = result.part2 {
+        println!("Part 2: {}", v)
+    }
 }
