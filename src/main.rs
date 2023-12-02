@@ -29,6 +29,7 @@ fn main() {
     let mut programs: HashMap<i32, Box<dyn Day>> = HashMap::new();
     programs.insert(1, Box::new(day1::Instance));
     programs.insert(2, Box::new(day2::Instance));
+    programs.insert(3, Box::new(day3::Instance));
 
     let program = programs
         .get(&opt.day)
