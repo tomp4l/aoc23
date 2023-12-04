@@ -89,7 +89,6 @@ impl FromStr for Schematic {
             }
             push_part(&mut parts, &mut n_acc, &mut n_pos)?;
         }
-        push_part(&mut parts, &mut n_acc, &mut n_pos)?;
 
         Ok(Schematic { parts, symbols })
     }
