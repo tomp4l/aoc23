@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+use lazy_static::lazy_static;
+use regex::Regex;
+
 use super::day::{Day, DayResult};
 
 pub struct Instance;
@@ -105,17 +108,20 @@ struct Almanac {
     maps: HashMap<String, Map>,
 }
 
+lazy_static! {
+    static ref NUMBERS_REGEX: Regex = Regex::new(r"\d+").unwrap();
+    static ref MAPPING_REGEX: Regex = Regex::new(r"(.+)-to-(.+) ").unwrap();
+}
+
 impl Almanac {
     fn from_lines(lines: &[String]) -> Result<Almanac, String> {
         let mut lines = lines.iter();
 
         let seeds_line = lines.next().ok_or("missing seeds")?;
-        let seeds = seeds_line
-            .split(' ')
-            .skip(1)
-            .map(|i| i.parse::<u64>())
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| format!("{} {}", e, seeds_line))?;
+        let seeds: Vec<_> = NUMBERS_REGEX
+            .captures_iter(seeds_line)
+            .map(|i| i.extract::<0>().0.parse::<u64>().unwrap())
+            .collect();
 
         lines.next();
 
@@ -126,37 +132,26 @@ impl Almanac {
             if line.is_empty() {
                 continue;
             } else if !line.chars().next().map_or(false, |c| c.is_ascii_digit()) {
-                let mut split = line.split('-');
+                let [from, to] = MAPPING_REGEX
+                    .captures(line)
+                    .ok_or(format!("Bad mapping: {}", line))?
+                    .extract()
+                    .1;
 
-                let from = split.next().unwrap().to_owned();
-                split.next();
-                let to_raw = split
-                    .next()
-                    .ok_or(format!("missing mapping to: {}", line))?;
-                let to = to_raw[..to_raw.len() - 5].to_owned();
-
-                let map = maps.entry(from).or_insert(Map {
-                    to,
+                let map = maps.entry(from.to_owned()).or_insert(Map {
+                    to: to.to_owned(),
                     ranges: Vec::new(),
                 });
                 ranges = &mut map.ranges;
             } else {
-                let mut split = line.split(' ');
-                let destination = split
+                let mut numbers = NUMBERS_REGEX
+                    .captures_iter(line)
+                    .map(|i| i.extract::<0>().0.parse::<u64>().unwrap());
+                let destination = numbers
                     .next()
-                    .unwrap()
-                    .parse::<u64>()
-                    .map_err(|e| format!("{}: {}", e, line))?;
-                let source = split
-                    .next()
-                    .ok_or(format!("missing source: {}", line))?
-                    .parse::<u64>()
-                    .map_err(|e| format!("{}: {}", e, line))?;
-                let range = split
-                    .next()
-                    .ok_or(format!("missing range: {}", line))?
-                    .parse::<u64>()
-                    .map_err(|e| format!("{}: {}", e, line))?;
+                    .ok_or(format!("missing destination: {}", line))?;
+                let source = numbers.next().ok_or(format!("missing source: {}", line))?;
+                let range = numbers.next().ok_or(format!("missing range: {}", line))?;
 
                 let range = MapRange {
                     source,
