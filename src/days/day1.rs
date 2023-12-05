@@ -2,7 +2,7 @@ use super::day::*;
 
 pub struct Instance;
 
-fn calibration_value(lines: &Vec<String>, scores: &Vec<(String, u32)>) -> u32 {
+fn calibration_value(lines: &[String], scores: &Vec<(String, u32)>) -> u32 {
     lines
         .iter()
         .map(|l| {
@@ -29,7 +29,7 @@ impl Day for Instance {
 
         let part1: u32 = calibration_value(&lines, &scores);
 
-        let words: Vec<_> = vec![
+        let words: Vec<_> = [
             "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
         ]
         .iter()

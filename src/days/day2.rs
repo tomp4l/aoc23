@@ -55,23 +55,20 @@ impl FromStr for Game {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut split = s.split(": ");
 
-        let game = split.next().ok_or("missing game")?;
-
-        let handfulls_str = split.next().ok_or("missing handfulls")?;
+        let game = split.next().unwrap();
 
         let id = game[5..game.len()]
             .parse::<u8>()
             .map_err(|e| e.to_string())?;
 
-        let handfulls = handfulls_str
+        let handfuls = split
+            .next()
+            .ok_or("missing handfuls")?
             .split("; ")
             .map(|s| s.parse::<Handful>())
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(Game {
-            id,
-            handfuls: handfulls,
-        })
+        Ok(Game { id, handfuls })
     }
 }
 

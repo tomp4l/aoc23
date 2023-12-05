@@ -48,7 +48,7 @@ fn push_part(
             .iter()
             .collect::<String>()
             .parse::<u16>()
-            .map_err(|e| format!("{}: {}", e.to_string(), acc.iter().collect::<String>()))?;
+            .map_err(|e| format!("{}: {}", e, acc.iter().collect::<String>()))?;
         parts.push(Part {
             x: p.0,
             y: p.1,
@@ -73,7 +73,7 @@ impl FromStr for Schematic {
 
         for (y, l) in s.split('\n').enumerate() {
             for (x, c) in l.chars().enumerate() {
-                if ('0'..='9').contains(&c) {
+                if c.is_ascii_digit() {
                     if let Some(n) = n_acc.as_mut() {
                         n.push(c);
                     } else {
@@ -118,7 +118,7 @@ impl Schematic {
                 if let Some(s) = self.symbols.get(&neighbour) {
                     if *s == '*' {
                         gears
-                            .entry(neighbour.clone())
+                            .entry(neighbour)
                             .and_modify(|p: &mut Vec<u16>| p.push(part.value))
                             .or_insert(vec![part.value]);
                     }

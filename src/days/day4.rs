@@ -18,10 +18,10 @@ impl FromStr for Card {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut split = s.split(": ");
         let card_id = split.next().unwrap();
-        let winners_numbers = split.next().unwrap_or("missing numbers");
+        let winners_numbers = split.next().ok_or("missing numbers")?;
 
         let id = card_id[5..card_id.len()]
-            .replace(" ", "")
+            .replace(' ', "")
             .parse::<u8>()
             .map_err(|e| e.to_string())?;
 
@@ -37,9 +37,9 @@ impl FromStr for Card {
                 i += 2;
             }
             let n = winners_numbers[i..i + 2]
-                .replace(" ", "")
+                .replace(' ', "")
                 .parse::<u8>()
-                .map_err(|e| format!("{}: {}", e.to_string(), &winners_numbers[i..i + 2]))?;
+                .map_err(|e| format!("{}: {}", e, &winners_numbers[i..i + 2]))?;
 
             if is_winners {
                 winners.push(n);
@@ -62,7 +62,7 @@ impl Card {
     fn wins(&self) -> u8 {
         let winners: HashSet<&u8> = HashSet::from_iter(self.winners.iter());
         let numbers: HashSet<&u8> = HashSet::from_iter(self.numbers.iter());
-        winners.intersection(&numbers).into_iter().count() as u8
+        winners.intersection(&numbers).count() as u8
     }
 
     fn score(&self) -> u16 {
