@@ -311,8 +311,43 @@ impl Map {
                 }
             }
         }
-
+        inside_outside.print();
         inside_outside.inside()
+    }
+
+    fn count_inside_rays(&self) -> usize {
+        let path: HashSet<Coord> = HashSet::from_iter(self.find_loop());
+
+        let max_x = self.0.keys().map(|c| c.0).max().unwrap();
+        let max_y = self.0.keys().map(|c| c.1).max().unwrap();
+
+        let mut total_inside = 0;
+        for x in 1..=max_x {
+            for y in 1..=max_y {
+                // Don't include the loop
+                if path.contains(&Coord(x, y)) {
+                    continue;
+                }
+
+                let crossings = (1..x)
+                    .rev()
+                    .zip((1..y).rev()) // project ray to top left corner
+                    .filter(|(x, y)| {
+                        let coord = &Coord(*x, *y);
+                        path.contains(coord) 
+                            // skirts corners so doesn't cross
+                            && !matches!(self.0[coord], Pipe::BendNe | Pipe::BendSw)
+                    })
+                    .count();
+
+                // Odd crossings means it's left the inside
+                if crossings % 2 == 1 {
+                    total_inside += 1
+                }
+            }
+        }
+
+        total_inside
     }
 }
 
@@ -412,12 +447,18 @@ impl<'a> InOutMap<'a> {
     }
 }
 
+const USE_ORIGINAL_SOLUTION: bool = false;
+
 impl Day for Instance {
     fn run(&self, lines: Vec<String>) -> Result<DayResult, String> {
         let map = Map::from_lines(&lines);
 
         let part1 = map.find_distance().to_string();
-        let part2 = map.count_inside().to_string();
+        let part2 = if USE_ORIGINAL_SOLUTION {
+            map.count_inside().to_string()
+        } else {
+            map.count_inside_rays().to_string()
+        };
 
         Ok(DayResult {
             part1,

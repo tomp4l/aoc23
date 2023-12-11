@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use itertools::Itertools;
+
 use super::day::{Day, DayResult};
 
 pub struct Instance;
@@ -41,11 +43,7 @@ impl Galaxy {
         }
         self.0
             .iter()
-            .flat_map(|a| {
-                self.0
-                    .iter()
-                    .filter_map(move |b| if a < b { Some((a, b)) } else { None })
-            })
+            .tuple_combinations()
             .map(|(a, b)| {
                 let range_x = a.0.min(b.0)..a.0.max(b.0);
                 let range_y = a.1.min(b.1)..a.1.max(b.1);
