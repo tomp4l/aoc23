@@ -80,9 +80,9 @@ impl Network {
             steps += 1;
 
             for (i, ghost) in ghosts.iter_mut().enumerate() {
-                *ghost = &mut self.step(&ghost, instruction);
+                *ghost = &mut self.step(ghost, instruction);
 
-                if ghost.ends_with("Z") {
+                if ghost.ends_with('Z') {
                     pattern[i].push(steps)
                 }
             }
@@ -101,7 +101,7 @@ impl Network {
         });
 
         // This only works because they cycle back to the start and all have 1 destination
-        pattern.iter().map(|v| v[0]).fold(1, |a, b| lcm(a, b))
+        pattern.iter().map(|v| v[0]).fold(1, lcm)
     }
 }
 
@@ -111,7 +111,7 @@ fn gcd(a: usize, b: usize) -> usize {
     while r.0 != 0 {
         let q = r.1 / r.0;
         swap(&mut r.0, &mut r.1);
-        r.0 = r.0 - q * r.1;
+        r.0 -= q * r.1;
     }
 
     r.1

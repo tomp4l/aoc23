@@ -29,7 +29,7 @@ impl Pipe {
             Pipe::BendSw => (Direction::South, Direction::West),
             Pipe::BendSe => (Direction::South, Direction::East),
             Pipe::Ground => return None,
-            Pipe::Start => return Some(direction.clone()),
+            Pipe::Start => return Some(*direction),
         };
 
         let entry_direction = direction.opposite();
@@ -186,7 +186,7 @@ impl Map {
             let mut current_pos = *start;
             let mut current_pipe = pipe;
 
-            let mut current_direction = start_direction.clone();
+            let mut current_direction = start_direction;
             let mut found_loop = vec![*start];
 
             loop {

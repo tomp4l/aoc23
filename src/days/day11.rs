@@ -28,14 +28,14 @@ impl Galaxy {
 
         let mut empty_x = HashSet::new();
         for x in 0..max_x {
-            if self.0.iter().find(|c| c.0 == x).is_none() {
+            if !self.0.iter().any(|c| c.0 == x) {
                 empty_x.insert(x);
             }
         }
 
         let mut empty_y = HashSet::new();
         for y in 0..max_y {
-            if self.0.iter().find(|c| c.1 == y).is_none() {
+            if !self.0.iter().any(|c| c.1 == y) {
                 empty_y.insert(y);
             }
         }
