@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
+use itertools::Itertools;
+
 use super::day::{Day, DayResult};
 
 pub struct Instance;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Hash)]
 enum Rock {
     Round,
     Cube,
@@ -167,21 +169,25 @@ impl Day for Instance {
         let part1 = platform.total_load().to_string();
 
         let mut cycles = Vec::new();
-        for _ in 0..300 {
-            platform.cycle();
-            cycles.push(platform.total_load());
-        }
-
+        let mut cache = HashMap::new();
         let mut cycle_length = 0;
 
-        'outer: for i in (1..cycles.len()).rev() {
-            for j in 1..=i {
-                if cycles[cycles.len() - j] != cycles[cycles.len() - j - i] {
-                    continue 'outer;
-                }
+        for i in 0.. {
+            platform.cycle();
+            cycles.push(platform.total_load());
+            let rocks = platform
+                .rocks
+                .iter()
+                .map(|(a, b)| (*a, b.clone()))
+                .sorted()
+                .collect_vec();
+
+            if let Some(j) = cache.get(&rocks) {
+                cycle_length = (i - j) as usize;
+                break;
+            } else {
+                cache.insert(rocks, i);
             }
-            cycle_length = i;
-            break;
         }
 
         let cycle = &cycles[(cycles.len() - cycle_length)..cycles.len()];
