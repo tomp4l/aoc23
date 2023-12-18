@@ -61,10 +61,8 @@ impl<'a> HashMap<'a> {
         let mut power = 0;
         for i in 0..256 {
             let b = &self.0[i];
-            for j in 0..b.len() {
-                let p = b[j].1;
-
-                power += ((i + 1) as u32) * ((j + 1) as u32) * (p as u32);
+            for (j, (_, p)) in b.iter().enumerate() {
+                power += ((i + 1) as u32) * ((j + 1) as u32) * (*p as u32);
             }
         }
         power

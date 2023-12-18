@@ -73,8 +73,8 @@ impl LavaPool {
         let mut heap: BinaryHeap<Reverse<State>> = BinaryHeap::new();
         let mut seen = HashSet::new();
 
-        heap.push(Reverse(State(0, 0, start.clone(), &Right)));
-        heap.push(Reverse(State(0, 0, start.clone(), &Down)));
+        heap.push(Reverse(State(0, 0, start, &Right)));
+        heap.push(Reverse(State(0, 0, start, &Down)));
 
         while let Some(Reverse(State(heat, steps, coord, direction))) = heap.pop() {
             if coord == (self.x_len, self.y_len) {

@@ -91,7 +91,6 @@ struct SparseGrid {
     pos: (i32, i32),
     hor_lines: Vec<(i32, i32, i32)>,
     ver_lines: Vec<(i32, i32, i32)>,
-    volume: Option<usize>,
 }
 
 impl SparseGrid {
@@ -100,7 +99,6 @@ impl SparseGrid {
             pos: (0, 0),
             hor_lines: Vec::new(),
             ver_lines: Vec::new(),
-            volume: None,
         }
     }
 
@@ -116,10 +114,6 @@ impl SparseGrid {
     }
 
     fn volume(&mut self) -> usize {
-        if let Some(v) = self.volume {
-            return v;
-        }
-
         #[derive(Debug)]
         enum Corner {
             CornerUp,
@@ -199,7 +193,6 @@ impl SparseGrid {
             last_y = y;
         }
 
-        self.volume = Some(volume);
         volume
     }
 }

@@ -136,8 +136,8 @@ impl Grid {
 
     fn beam(&self, start: &(&'static Direction, (usize, usize))) -> usize {
         let mut visited = HashSet::new();
-        visited.insert(start.clone());
-        let mut beams = vec![start.clone()];
+        visited.insert(*start);
+        let mut beams = vec![*start];
 
         while let Some(beam) = beams.pop() {
             if let Some(g) = self.entries.get(&beam.1) {
@@ -158,7 +158,7 @@ impl Grid {
                 let next = (beam.0, next_coord);
 
                 if self.contains(&next_coord) && !visited.contains(&next) {
-                    visited.insert(next.clone());
+                    visited.insert(next);
                     beams.push(next);
                 }
             }
