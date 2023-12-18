@@ -1,4 +1,4 @@
-use std::{collections::HashSet, str::FromStr};
+use std::str::FromStr;
 
 use itertools::Itertools;
 
@@ -28,12 +28,13 @@ impl FromStr for Direction {
 }
 
 impl Direction {
-    fn next(&self, c: &(i32, i32)) -> (i32, i32) {
+    fn line(&self, c: &(i32, i32), distance: u32) -> (i32, i32) {
+        let distance: i32 = distance.try_into().unwrap();
         match self {
-            Direction::Up => (c.0, c.1 - 1),
-            Direction::Down => (c.0, c.1 + 1),
-            Direction::Right => (c.0 + 1, c.1),
-            Direction::Left => (c.0 - 1, c.1),
+            Direction::Up => (c.0, c.1 - distance),
+            Direction::Down => (c.0, c.1 + distance),
+            Direction::Right => (c.0 + distance, c.1),
+            Direction::Left => (c.0 - distance, c.1),
         }
     }
 }
@@ -62,93 +63,168 @@ impl FromStr for Instruction {
     }
 }
 
-struct Grid {
-    pos: (i32, i32),
-    dug: HashSet<(i32, i32)>,
+struct HackedInstruction(Instruction);
+
+impl FromStr for HackedInstruction {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let hex = &s[s.len() - 7..s.len() - 1];
+        let direction = match &hex[5..6] {
+            "0" => Direction::Right,
+            "1" => Direction::Down,
+            "2" => Direction::Left,
+            "3" => Direction::Up,
+            e => Err(format!("bad direction: {}", e))?,
+        };
+
+        let distance = u32::from_str_radix(&hex[..5], 16).unwrap();
+
+        Ok(HackedInstruction(Instruction {
+            direction,
+            distance,
+        }))
+    }
 }
 
-impl Grid {
+struct SparseGrid {
+    pos: (i32, i32),
+    hor_lines: Vec<(i32, i32, i32)>,
+    ver_lines: Vec<(i32, i32, i32)>,
+    volume: Option<usize>,
+}
+
+impl SparseGrid {
     fn new() -> Self {
-        let mut dug = HashSet::new();
-        dug.insert((0, 0));
-        Grid { pos: (0, 0), dug }
+        SparseGrid {
+            pos: (0, 0),
+            hor_lines: Vec::new(),
+            ver_lines: Vec::new(),
+            volume: None,
+        }
     }
 
     fn apply(&mut self, instruction: &Instruction) {
-        let mut distance = instruction.distance;
-        let mut pos = self.pos;
-        while distance > 0 {
-            pos = instruction.direction.next(&pos);
-            self.dug.insert(pos);
-            distance -= 1;
+        let next = instruction.direction.line(&self.pos, instruction.distance);
+        match instruction.direction {
+            Direction::Up => self.ver_lines.push((self.pos.0, next.1, self.pos.1)),
+            Direction::Down => self.ver_lines.push((self.pos.0, self.pos.1, next.1)),
+            Direction::Left => self.hor_lines.push((self.pos.1, next.0, self.pos.0)),
+            Direction::Right => self.hor_lines.push((self.pos.1, self.pos.0, next.0)),
         }
-        self.pos = pos;
+        self.pos = next;
     }
 
-    fn fill(&mut self) {
-        let x_min = self.dug.iter().map(|c: &(i32, i32)| c.0).min().unwrap();
-        let x_max = self.dug.iter().map(|c| c.0).max().unwrap();
-        let y_min = self.dug.iter().map(|c| c.1).min().unwrap();
-        let y_max = self.dug.iter().map(|c| c.1).max().unwrap();
+    fn volume(&mut self) -> usize {
+        if let Some(v) = self.volume {
+            return v;
+        }
 
-        enum Entry {
+        #[derive(Debug)]
+        enum Corner {
             CornerUp,
             CornerDown,
         }
 
-        for y in y_min..=y_max {
+        fn width(y: i32, ver_lines: &[(i32, i32, i32)], hor_lines: &[(i32, i32, i32)]) -> usize {
+            let mut width = 0;
             let mut inside = false;
-            let mut entry = None;
+            let mut x_last = 0;
+            let mut corner = None;
+            for (x, y_min, y_max) in ver_lines.iter().copied() {
+                if y_min == y || y_max == y {
+                    let hor_line = hor_lines
+                        .iter()
+                        .find(|l| l.0 == y && (l.1 == x || l.2 == x))
+                        .unwrap();
+                    if hor_line.1 == x {
+                        if y_min == y {
+                            corner = Some(Corner::CornerDown);
+                        } else {
+                            corner = Some(Corner::CornerUp);
+                        }
+                        if inside {
+                            width += (x - x_last) as usize;
+                        }
 
-            for x in x_min..=x_max {
-                if self.dug.contains(&(x, y)) {
-                    if let Some(ref e) = entry {
-                        if !self.dug.contains(&(x + 1, y)) {
-                            match e {
-                                Entry::CornerUp => {
-                                    if self.dug.contains(&(x, y + 1)) {
-                                        inside = !inside
-                                    }
-                                }
-                                Entry::CornerDown => {
-                                    if self.dug.contains(&(x, y - 1)) {
-                                        inside = !inside
-                                    }
+                        x_last = hor_line.2;
+
+                        width += (hor_line.2 - hor_line.1) as usize;
+                    } else {
+                        match corner.unwrap() {
+                            Corner::CornerDown => {
+                                if y_max == y {
+                                    inside = !inside
                                 }
                             }
-                            entry = None;
+                            Corner::CornerUp => {
+                                if y_min == y {
+                                    inside = !inside
+                                }
+                            }
                         }
-                    } else if !self.dug.contains(&(x, y + 1)) {
-                        entry = Some(Entry::CornerUp)
-                    } else if !self.dug.contains(&(x, y - 1)) {
-                        entry = Some(Entry::CornerDown)
-                    } else {
-                        inside = !inside
+
+                        if inside {
+                            x_last = x;
+                        } else {
+                            width += 1;
+                        }
+
+                        corner = None;
                     }
-                } else if inside {
-                    self.dug.insert((x, y));
+                } else if (y_min..=y_max).contains(&y) {
+                    inside = !inside;
+                    if inside {
+                        x_last = x;
+                    } else {
+                        width += (x - x_last + 1) as usize;
+                    }
                 }
             }
+            width
         }
-    }
 
-    fn volume(&self) -> usize {
-        self.dug.len()
+        self.ver_lines.sort();
+        self.hor_lines.sort();
+        let ys = self.hor_lines.iter().map(|c| c.0).dedup().collect_vec();
+        let mut last_y = 0;
+        let mut last_width = 0;
+        let mut volume = 0;
+        for y in ys {
+            volume += width(y, &self.ver_lines, &self.hor_lines);
+            if last_width > 0 {
+                volume += last_width * (y - last_y - 1) as usize;
+            }
+            last_width = width(y + 1, &self.ver_lines, &self.hor_lines);
+            last_y = y;
+        }
+
+        self.volume = Some(volume);
+        volume
     }
 }
 
 impl Day for Instance {
     fn run(&self, lines: Vec<String>) -> Result<DayResult, String> {
         let instructions: Vec<Instruction> = lines.iter().map(|l| l.parse()).try_collect()?;
-        let mut grid = Grid::new();
+        let hacked_instructions: Vec<HackedInstruction> =
+            lines.iter().map(|l| l.parse()).try_collect()?;
 
+        let mut sparse_grid = SparseGrid::new();
         for instruction in instructions.iter() {
-            grid.apply(instruction);
+            sparse_grid.apply(instruction);
         }
+        let part1 = sparse_grid.volume().to_string();
 
-        grid.fill();
+        let mut sparse_grid = SparseGrid::new();
+        for HackedInstruction(instruction) in hacked_instructions.iter() {
+            sparse_grid.apply(instruction);
+        }
+        let part2 = sparse_grid.volume().to_string();
 
-        let part1 = grid.volume().to_string();
-        Ok(DayResult { part1, part2: None })
+        Ok(DayResult {
+            part1,
+            part2: Some(part2),
+        })
     }
 }
