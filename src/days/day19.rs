@@ -127,6 +127,47 @@ impl Rule {
             Rule::Lt(p, v, o) => (part.get(p) < *v).then_some(o),
         }
     }
+
+    fn matched_unmatched(
+        &self,
+        from: &Part,
+        to: &Part,
+    ) -> (Option<(Part, Part)>, Option<(Part, Part)>) {
+        match self {
+            Rule::Gt(p, v, _) => {
+                if from.get(p) > *v {
+                    return (Some((from.clone(), to.clone())), None);
+                } else if to.get(p) <= *v {
+                    return (None, Some((from.clone(), to.clone())));
+                }
+                let mut higher_from = from.clone();
+                higher_from.set(p, v + 1);
+                let mut lower_to = to.clone();
+                lower_to.set(p, *v);
+
+                (
+                    Some((higher_from, to.clone())),
+                    Some((from.clone(), lower_to)),
+                )
+            }
+            Rule::Lt(p, v, _) => {
+                if to.get(p) < *v {
+                    return (Some((from.clone(), to.clone())), None);
+                } else if from.get(p) >= *v {
+                    return (None, Some((from.clone(), to.clone())));
+                }
+                let mut lower_to = to.clone();
+                lower_to.set(p, v - 1);
+                let mut higher_from = from.clone();
+                higher_from.set(p, *v);
+
+                (
+                    Some((from.clone(), lower_to)),
+                    Some((higher_from, to.clone())),
+                )
+            }
+        }
+    }
 }
 
 impl FromStr for Rule {
@@ -231,7 +272,7 @@ impl Workflows<'_> {
     }
 
     fn total_accepted(&self) -> u64 {
-        let mut canditates = vec![(
+        let mut candidates = vec![(
             Part {
                 x: 1,
                 m: 1,
@@ -249,89 +290,60 @@ impl Workflows<'_> {
 
         let mut accepted = 0;
 
-        fn possibility(from: &Part, to: &Part) -> u64 {
-            (to.x - from.x + 1) as u64
-                * (to.m - from.m + 1) as u64
-                * (to.s - from.s + 1) as u64
-                * (to.a - from.a + 1) as u64
+        fn run_outcome<'a>(
+            outcome: &Outcome,
+            from: Part,
+            to: Part,
+            candidates: &mut Vec<(Part, Part, &'a Workflow)>,
+            accepted: &mut u64,
+            workflows: &'a Workflows,
+        ) {
+            match outcome {
+                Outcome::Accept => {
+                    *accepted += (to.x - from.x + 1) as u64
+                        * (to.m - from.m + 1) as u64
+                        * (to.s - from.s + 1) as u64
+                        * (to.a - from.a + 1) as u64;
+                }
+                Outcome::Reject => (),
+                Outcome::Workflow(w) => candidates.push((from, to, workflows.0[w.as_str()])),
+            }
         }
 
-        'outer: while let Some((from, to, workflow)) = canditates.pop() {
+        'outer: while let Some((from, to, workflow)) = candidates.pop() {
             let mut from = from;
             let mut to = to;
             for rule in &workflow.rules {
                 match rule {
-                    Rule::Gt(p, v, o) => {
-                        if from.get(p) > *v {
-                            match o {
-                                Outcome::Accept => {
-                                    accepted += possibility(&from, &to);
-                                }
-                                Outcome::Reject => (),
-                                Outcome::Workflow(w) => {
-                                    canditates.push((from, to, self.0[w.as_str()]))
-                                }
-                            }
-                            continue 'outer;
-                        } else if to.get(p) <= *v {
-                            continue;
-                        }
-                        let mut higher_from = from.clone();
-                        higher_from.set(p, v + 1);
-                        let mut lower_to = to.clone();
-                        lower_to.set(p, *v);
+                    Rule::Gt(_, _, o) | Rule::Lt(_, _, o) => {
+                        let (matched, unmatched) = rule.matched_unmatched(&from, &to);
 
-                        match o {
-                            Outcome::Accept => {
-                                accepted += possibility(&higher_from, &to);
+                        match matched {
+                            Some((f, t)) => {
+                                run_outcome(o, f, t, &mut candidates, &mut accepted, &self)
                             }
-                            Outcome::Reject => (),
-                            Outcome::Workflow(w) => {
-                                canditates.push((higher_from, to.clone(), self.0[w.as_str()]))
-                            }
+                            None => continue,
                         }
-                        to = lower_to
-                    }
-                    Rule::Lt(p, v, o) => {
-                        if to.get(p) < *v {
-                            match o {
-                                Outcome::Accept => {
-                                    accepted += possibility(&from, &to);
-                                }
-                                Outcome::Reject => (),
-                                Outcome::Workflow(w) => {
-                                    canditates.push((from, to, self.0[w.as_str()]))
-                                }
+
+                        match unmatched {
+                            Some((f, t)) => {
+                                from = f;
+                                to = t
                             }
-                            continue 'outer;
-                        } else if from.get(p) >= *v {
-                            continue;
+                            None => continue 'outer,
                         }
-                        let mut lower_to = to.clone();
-                        lower_to.set(p, v - 1);
-                        let mut higher_from = from.clone();
-                        higher_from.set(p, *v);
-                        match o {
-                            Outcome::Accept => {
-                                accepted += possibility(&from, &lower_to);
-                            }
-                            Outcome::Reject => (),
-                            Outcome::Workflow(w) => {
-                                canditates.push((from.clone(), lower_to, self.0[w.as_str()]))
-                            }
-                        }
-                        from = higher_from;
                     }
                 }
             }
 
-            match &workflow.default {
-                Outcome::Accept => {
-                    accepted += possibility(&from, &to);
-                }
-                Outcome::Reject => (),
-                Outcome::Workflow(w) => canditates.push((from, to, self.0[w.as_str()])),
-            }
+            run_outcome(
+                &workflow.default,
+                from,
+                to,
+                &mut candidates,
+                &mut accepted,
+                &self,
+            )
         }
 
         accepted
