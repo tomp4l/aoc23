@@ -120,6 +120,8 @@ enum Rule {
     Lt(Property, u16, Outcome),
 }
 
+type MatchedUnmatched = (Option<(Part, Part)>, Option<(Part, Part)>);
+
 impl Rule {
     fn apply(&self, part: &Part) -> Option<&Outcome> {
         match self {
@@ -128,11 +130,7 @@ impl Rule {
         }
     }
 
-    fn matched_unmatched(
-        &self,
-        from: &Part,
-        to: &Part,
-    ) -> (Option<(Part, Part)>, Option<(Part, Part)>) {
+    fn matched_unmatched(&self, from: &Part, to: &Part) -> MatchedUnmatched {
         match self {
             Rule::Gt(p, v, _) => {
                 if from.get(p) > *v {
@@ -320,7 +318,7 @@ impl Workflows<'_> {
 
                         match matched {
                             Some((f, t)) => {
-                                run_outcome(o, f, t, &mut candidates, &mut accepted, &self)
+                                run_outcome(o, f, t, &mut candidates, &mut accepted, self)
                             }
                             None => continue,
                         }
@@ -342,7 +340,7 @@ impl Workflows<'_> {
                 to,
                 &mut candidates,
                 &mut accepted,
-                &self,
+                self,
             )
         }
 

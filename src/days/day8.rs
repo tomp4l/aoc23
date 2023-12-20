@@ -1,8 +1,11 @@
-use std::{collections::HashMap, mem::swap};
+use std::collections::HashMap;
 
 use itertools::Itertools;
 
-use super::day::{Day, DayResult};
+use super::{
+    day::{Day, DayResult},
+    util::lcm,
+};
 
 pub struct Instance;
 
@@ -103,22 +106,6 @@ impl Network {
         // This only works because they cycle back to the start and all have 1 destination
         pattern.iter().map(|v| v[0]).fold(1, lcm)
     }
-}
-
-fn gcd(a: usize, b: usize) -> usize {
-    let mut r = (a, b);
-
-    while r.0 != 0 {
-        let q = r.1 / r.0;
-        swap(&mut r.0, &mut r.1);
-        r.0 -= q * r.1;
-    }
-
-    r.1
-}
-
-fn lcm(a: usize, b: usize) -> usize {
-    a * b / gcd(a, b)
 }
 
 impl Day for Instance {
