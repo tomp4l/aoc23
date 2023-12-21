@@ -162,19 +162,19 @@ impl Circuit<'_> {
         let mut cycles = HashMap::new();
 
         loop {
-            let pushes = self.button_pushes + 1;
             let x = self.push_the_button();
 
             let pulses = x
                 .iter()
                 .filter(|s| s.0 == name && s.2 == Pulse::High)
+                .map(|s| s.1.to_owned())
                 .collect_vec();
 
             for p in pulses {
                 cycles
-                    .entry(p.1.to_owned())
-                    .and_modify(|p: &mut Vec<usize>| p.push(pushes))
-                    .or_insert(Vec::new());
+                    .entry(p)
+                    .and_modify(|p: &mut Vec<usize>| p.push(self.button_pushes))
+                    .or_insert(vec![self.button_pushes]);
             }
 
             if !cycles.is_empty() && cycles.values().all(|v| v.len() > 1) {
