@@ -1,4 +1,4 @@
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -11,9 +11,9 @@ pub struct Instance;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 struct Coord {
-    x: usize,
-    y: usize,
-    z: usize,
+    x: u16,
+    y: u16,
+    z: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -23,7 +23,6 @@ struct Block {
 }
 
 lazy_static! {
-    //6,0,119~7,0,119
     static ref BLOCK_REGEX: Regex = Regex::new(r"^(.*),(.*),(.*)~(.*),(.*),(.*)$").unwrap();
 }
 
@@ -37,7 +36,7 @@ impl FromStr for Block {
             .extract::<6>()
             .1
             .iter()
-            .map(|l| l.parse::<usize>())
+            .map(|l| l.parse::<u16>())
             .try_collect()
             .map_err(|e| format!("{}", e))?;
 
@@ -57,16 +56,24 @@ impl FromStr for Block {
 }
 
 impl Block {
-    fn coords(&self) -> HashSet<Coord> {
-        let mut ret = HashSet::new();
+    fn coords(&self) -> Vec<Coord> {
+        let mut ret = Vec::new();
         for x in self.start.x..=self.end.x {
             for y in self.start.y..=self.end.y {
                 for z in self.start.z..=self.end.z {
-                    ret.insert(Coord { x, y, z });
+                    ret.push(Coord { x, y, z });
                 }
             }
         }
         ret
+    }
+
+    fn bottom_coords(&self) -> Vec<Coord> {
+        if self.start.z == self.end.z {
+            self.coords()
+        } else {
+            vec![self.start.clone()]
+        }
     }
 
     fn below(&self) -> Block {
@@ -84,11 +91,50 @@ impl Block {
 }
 
 #[derive(Debug, Clone)]
-struct Blocks(Vec<Block>, HashSet<Coord>);
+struct Posititions(HashMap<(u16, u16), Vec<bool>>);
+
+impl Posititions {
+    fn new(blocks: &[Block]) -> Self {
+        let max_z = blocks.iter().map(|c| c.end.z).max().unwrap() + 1;
+        let mut positions = HashMap::new();
+
+        for b in blocks {
+            for c in b.coords() {
+                let xy = (c.x, c.y);
+
+                let zs = positions.entry(xy).or_insert(vec![false; max_z as usize]);
+
+                zs[c.z as usize] = true;
+            }
+        }
+
+        Posititions(positions)
+    }
+
+    fn contains(&self, coord: &Coord) -> bool {
+        self.0[&(coord.x, coord.y)][coord.z as usize]
+    }
+
+    fn replace(&mut self, old_coords: Vec<Coord>, new_coords: Vec<Coord>) {
+        self.remove(old_coords);
+        for coord in new_coords {
+            self.0.get_mut(&(coord.x, coord.y)).unwrap()[coord.z as usize] = true;
+        }
+    }
+
+    fn remove(&mut self, old_coords: Vec<Coord>) {
+        for coord in old_coords {
+            self.0.get_mut(&(coord.x, coord.y)).unwrap()[coord.z as usize] = false;
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Blocks(Vec<Block>, Posititions);
 
 impl Blocks {
     fn new(mut blocks: Vec<Block>) -> Self {
-        let positions = blocks.iter().flat_map(|b| b.coords()).collect();
+        let positions = Posititions::new(&blocks);
         blocks.sort_by_key(|c| c.end.z);
         Blocks(blocks, positions)
     }
@@ -102,16 +148,15 @@ impl Blocks {
             while !next.at_bottom()
                 && next
                     .below()
-                    .coords()
-                    .difference(&current_coords)
+                    .bottom_coords()
+                    .iter()
                     .all(|c| !self.1.contains(c))
             {
                 moved += 1;
 
                 next = next.below();
             }
-            self.1.retain(|c| !current_coords.contains(c));
-            self.1.extend(next.coords());
+            self.1.replace(current_coords, next.coords());
             *b = next;
         }
 
@@ -135,7 +180,7 @@ impl Blocks {
             .map(|b| {
                 let mut copy = self.clone();
                 copy.0.retain(|b2| &b != b2);
-                copy.1.retain(|c| !b.coords().contains(c));
+                copy.1.remove(b.coords());
                 if !copy.to_bottom() {
                     (1, 0)
                 } else {
