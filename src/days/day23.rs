@@ -196,31 +196,37 @@ impl Maze {
             }
         }
 
+        let mut junction_vec = junctions.iter().copied().collect_vec();
+        junction_vec.sort();
+
         let mut path_distances = HashMap::new();
 
         for (f, t, d) in paths {
+            let f_i = junction_vec.binary_search(f).unwrap();
+            let t_i = junction_vec.binary_search(&t).unwrap();
+
             path_distances
-                .entry(*f)
-                .and_modify(|p: &mut Vec<((usize, usize), usize)>| p.push((t, d)))
-                .or_insert(vec![(t, d)]);
+                .entry(f_i)
+                .and_modify(|p: &mut Vec<(usize, usize)>| p.push((t_i, d)))
+                .or_insert(vec![(t_i, d)]);
         }
 
-        let start_candidates: usize = 1;
-        let mut candidates = vec![(self.start, 0, start_candidates)];
+        let start_idx = junction_vec.binary_search(&self.start).unwrap();
+        let start_candidates: usize = 1 << start_idx;
+        let end_idx = junction_vec.binary_search(&self.end).unwrap();
 
-        let mut junction_vec = junctions.iter().collect_vec();
-        junction_vec.sort();
+        let mut candidates = vec![(start_idx, 0, start_candidates)];
 
         let mut max_distance = 0;
         while let Some((c, d, v)) = candidates.pop() {
             let ps = &path_distances[&c];
 
             for ps in ps {
-                let z = 1 << junction_vec.binary_search(&&ps.0).unwrap();
+                let z = 1 << ps.0;
                 if v & z != 0 {
                     continue;
                 }
-                if ps.0 == self.end {
+                if ps.0 == end_idx {
                     if d + ps.1 > max_distance {
                         max_distance = d + ps.1;
                     }
