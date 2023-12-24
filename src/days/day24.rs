@@ -78,9 +78,11 @@ impl Hailstone {
     }
 }
 
+const SEARCH_SPACE: i128 = 500;
+
 impl Day for Instance {
     fn run(&self, lines: Vec<String>) -> Result<DayResult, String> {
-        let hailstones: Vec<Hailstone> = lines.iter().map(|l| l.parse()).try_collect()?;
+        let mut hailstones: Vec<Hailstone> = lines.iter().map(|l| l.parse()).try_collect()?;
 
         let pairs = hailstones.iter().tuple_combinations();
 
@@ -95,47 +97,53 @@ impl Day for Instance {
             }
         }
 
-        let mut part2 = None;
-        'outer: for xv in -300..300 {
-            for yv in -300..300 {
-                let mut new_stones = hailstones.clone();
+        fn same_source(hailstones: &Vec<Hailstone>) -> Option<(i128, i128)> {
+            let mut combinations = hailstones
+                .iter()
+                .tuple_combinations()
+                .filter_map(|(a, b)| a.cross_xy(b));
+            if let Some(v) = combinations.next() {
+                if combinations.all(|c| c == v) {
+                    return Some(v);
+                }
+            }
+            None
+        }
 
-                new_stones.iter_mut().for_each(|h| {
-                    h.velocity.x += xv;
-                    h.velocity.y += yv;
+        let part2;
+        hailstones.iter_mut().for_each(|h| {
+            h.velocity.x -= SEARCH_SPACE;
+            h.velocity.y -= SEARCH_SPACE;
+        });
+        'outer: loop {
+            hailstones.iter_mut().for_each(|h| {
+                h.velocity.x += 1;
+            });
+            for _ in 0..(SEARCH_SPACE * 2) {
+                hailstones.iter_mut().for_each(|h| {
+                    h.velocity.y += 1;
                 });
 
-                if let Some(v1) = new_stones[0].cross_xy(&new_stones[1]) {
-                    if new_stones.iter().tuple_combinations().all(|(a, b)| {
-                        if let Some(c) = a.cross_xy(b) {
-                            c == v1
-                        } else {
-                            true
-                        }
-                    }) {
-                        for zv in -300..300 {
-                            let mut new_stones = new_stones.clone();
-                            new_stones.iter_mut().for_each(|h| {
-                                h.velocity.z += zv;
-                                swap(&mut h.velocity.y, &mut h.velocity.z);
-                                swap(&mut h.position.y, &mut h.position.z);
-                            });
-                            if let Some(v2) = new_stones[0].cross_xy(&new_stones[1]) {
-                                if new_stones.iter().tuple_combinations().all(|(a, b)| {
-                                    if let Some(c) = a.cross_xy(b) {
-                                        c == v2
-                                    } else {
-                                        true
-                                    }
-                                }) {
-                                    part2 = Some(v1.0 + v1.1 + v2.1);
-                                    break 'outer;
-                                }
-                            }
+                if let Some(v1) = same_source(&hailstones) {
+                    hailstones.iter_mut().for_each(|h| {
+                        h.velocity.z -= SEARCH_SPACE;
+                        swap(&mut h.velocity.y, &mut h.velocity.z);
+                        swap(&mut h.position.y, &mut h.position.z);
+                    });
+                    loop {
+                        hailstones.iter_mut().for_each(|h| {
+                            h.velocity.y += 1;
+                        });
+                        if let Some(v2) = same_source(&hailstones) {
+                            part2 = Some(v1.0 + v1.1 + v2.1);
+                            break 'outer;
                         }
                     }
                 }
             }
+            hailstones.iter_mut().for_each(|h| {
+                h.velocity.y -= SEARCH_SPACE * 2;
+            });
         }
 
         Ok(DayResult {
